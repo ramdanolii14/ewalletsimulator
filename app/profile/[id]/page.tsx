@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import Image from "next/image";
 
 export default function ProfilePage() {
