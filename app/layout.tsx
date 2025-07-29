@@ -1,12 +1,15 @@
-import './globals.css';
+import './globals.css'
+import { ReactNode } from 'react'
 
-export default function RootLayout({ children }) {
+export const metadata = {
+  title: 'E-Wallet Sim',
+  description: 'Simulator e-wallet dengan Supabase dan Next.js',
+}
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="id">
-      <body className="bg-gray-50 font-sans">
-        <header className="bg-white shadow p-4 mb-4 text-center text-xl font-semibold">E-Wallet Sim</header>
-        {children}
-      </body>
+      <body className="bg-gray-50 font-sans">{children}</body>
     </html>
-  );
+  )
 }
