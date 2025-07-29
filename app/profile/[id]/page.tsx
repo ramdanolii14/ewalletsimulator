@@ -56,7 +56,10 @@ export default function ProfilePage() {
         .upload(filePath, avatarFile, { upsert: true });
 
       if (!uploadError) {
-        const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+        const { data } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(filePath);
+
         avatar_url = data.publicUrl;
       }
     }
@@ -76,11 +79,15 @@ export default function ProfilePage() {
 
   if (!profile) return <p className="text-center mt-8">Memuat profil...</p>;
 
+  const avatarUrl =
+    profile.avatar_url ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.username)}`;
+
   return (
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
       <div className="flex flex-col items-center mb-6">
         <Image
-          src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}`}
+          src={avatarUrl}
           alt="Avatar"
           width={100}
           height={100}
