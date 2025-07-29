@@ -14,7 +14,7 @@ export default function AuthCallbackPage() {
       if (error) {
         alert("Gagal login: " + error.message);
       } else {
-        router.push("/dashboard"); // ganti dengan halaman utama kamu
+        router.push("/"); // ganti dengan halaman utama kamu
       }
     };
 
