@@ -1,35 +1,40 @@
 // app/page.tsx
-'use client'
-import { useEffect, useState } from 'react'
+"use client";
 
-export default function HomePage() {
-  const [saldo, setSaldo] = useState<number | null>(null)
+import { useState } from "react";
 
-  useEffect(() => {
-    // Simulasi fetch saldo
-    setTimeout(() => {
-      setSaldo(100000)
-    }, 1000)
-  }, [])
+export default function Home() {
+  const [balance, setBalance] = useState(2500000); // contoh saldo awal
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Saldo Anda</h1>
-      <p className="text-xl font-medium text-green-600">
-        Rp {saldo !== null ? saldo.toLocaleString() : 'Loading...'}
-      </p>
+    <main className="min-h-screen bg-gray-50 px-6 py-10">
+      <div className="max-w-md mx-auto bg-white shadow-lg rounded-2xl p-6">
+        <h1 className="text-2xl font-bold mb-4 text-gray-800">E-Wallet Simulator</h1>
 
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Top Up / Tarik</h2>
-        <div className="flex space-x-4">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            Kirim Uang
+        <div className="bg-blue-100 rounded-xl p-4 mb-6 text-center">
+          <p className="text-sm text-gray-500">Saldo Anda</p>
+          <h2 className="text-3xl font-bold text-blue-600">
+            Rp {balance.toLocaleString("id-ID")}
+          </h2>
+        </div>
+
+        <div className="space-y-4">
+          <button
+            onClick={() => setBalance((prev) => prev + 50000)}
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition"
+          >
+            Top Up Rp 50.000
           </button>
-          <button className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">
-            Riwayat
+          <button
+            onClick={() => setBalance((prev) => prev - 25000)}
+            className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition"
+          >
+            Bayar Rp 25.000
           </button>
         </div>
+
+        <p className="text-center text-sm text-gray-400 mt-6">Simulasi sederhana e-wallet</p>
       </div>
-    </div>
-  )
+    </main>
+  );
 }
