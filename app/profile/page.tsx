@@ -1,115 +1,136 @@
-// app/components/Navbar.tsx
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import Image from "next/image";
 
-const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/redeem", label: "Redeem" },
-  { href: "/transfer", label: "Transfer" },
-  { href: "/history", label: "Riwayat" },
-];
+interface Profile {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string | null;
+  balance: number;
+}
 
-export default function Navbar() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [profile, setProfile] = useState<{ username: string; avatar_url: string | null } | null>(null);
-  const [openDropdown, setOpenDropdown] = useState(false);
+export default function ProfilePage() {
+  const { id } = useParams();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("username, avatar_url")
-        .eq("id", user.id)
+        .select("*")
+        .eq("id", id)
         .single();
 
-      if (!error && data) setProfile(data);
+      if (data) {
+        setProfile(data);
+        setNewUsername(data.username);
+        setIsOwner(user?.id === data.id);
+      }
     };
-    fetchProfile();
-  }, []);
 
-  const avatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.username ?? "U"}`;
+    fetchProfile();
+  }, [id]);
+
+  const handleUpdate = async () => {
+    if (!profile) return;
+
+    let avatar_url = profile.avatar_url;
+
+    if (avatarFile) {
+      const fileExt = avatarFile.name.split(".").pop();
+      const filePath = `${profile.id}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, avatarFile, { upsert: true });
+
+      if (!uploadError) {
+        const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+        avatar_url = data.publicUrl;
+      }
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ username: newUsername, avatar_url })
+      .eq("id", profile.id);
+
+    if (!error) {
+      setProfile((prev) =>
+        prev ? { ...prev, username: newUsername, avatar_url } : prev
+      );
+      alert("Profil berhasil diperbarui!");
+    }
+  };
+
+  if (!profile) return <p className="text-center mt-8">Memuat profil...</p>;
 
   return (
-    <nav className="w-full bg-white shadow px-8 py-3 flex justify-between items-center">
-      <Link href="/">
-        <h1 className="font-bold text-xl text-blue-600">E-Wallet Simulator</h1>
-      </Link>
-      <div className="flex space-x-6 items-center">
-        <div className="flex space-x-4">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`text-sm font-medium transition ${
-                pathname === item.href ? "text-blue-600 underline" : "text-gray-700 hover:text-blue-600"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-        {profile && (
-          <div className="relative">
-            <button onClick={() => setOpenDropdown(!openDropdown)}>
-              <Image
-                src={avatar}
-                alt="Avatar"
-                width={32}
-                height={32}
-                className="rounded-full border"
-              />
-            </button>
-            {openDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-md z-50">
-                <Link
-                  href="/profile"
-                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
-                >
-                  Profil Saya
-                </Link>
-                <Link
-                  href="/redeem"
-                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
-                >
-                  Redeem Kode
-                </Link>
-                <Link
-                  href="/transfer"
-                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
-                >
-                  Transfer Saldo
-                </Link>
-                <Link
-                  href="/history"
-                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
-                >
-                  Riwayat
-                </Link>
-                <button
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    router.refresh();
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
+    <div className="max-w-xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
+      <div className="flex flex-col items-center mb-6">
+        <Image
+          src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}`}
+          alt="Avatar"
+          width={100}
+          height={100}
+          className="rounded-full object-cover"
+        />
+        {isOwner && (
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) setAvatarFile(file);
+            }}
+            className="mt-2"
+          />
         )}
       </div>
-    </nav>
+
+      <div className="mb-4">
+        <label className="block font-semibold">Username</label>
+        {isOwner ? (
+          <input
+            type="text"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            className="w-full border px-3 py-2 rounded-md"
+          />
+        ) : (
+          <p>{profile.username}</p>
+        )}
+      </div>
+
+      <div className="mb-4">
+        <label className="block font-semibold">Email</label>
+        <p>{profile.email}</p>
+      </div>
+
+      <div className="mb-4">
+        <label className="block font-semibold">Saldo</label>
+        <p>{profile.balance.toLocaleString()} coins</p>
+      </div>
+
+      {isOwner && (
+        <button
+          onClick={handleUpdate}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+        >
+          Simpan Perubahan
+        </button>
+      )}
+    </div>
   );
 }
