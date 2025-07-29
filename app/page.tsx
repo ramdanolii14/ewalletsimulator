@@ -1,45 +1,35 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+// app/page.tsx
+'use client'
+import { useEffect, useState } from 'react'
 
 export default function HomePage() {
-  const [balance, setBalance] = useState<number | null>(null);
+  const [saldo, setSaldo] = useState<number | null>(null)
 
   useEffect(() => {
-    const fetchBalance = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("balance")
-        .eq("id", user.id)
-        .single();
-
-      if (data) setBalance(data.balance);
-    };
-
-    fetchBalance();
-  }, []);
+    // Simulasi fetch saldo
+    setTimeout(() => {
+      setSaldo(100000)
+    }, 1000)
+  }, [])
 
   return (
-    <main className="max-w-xl mx-auto p-6 text-center">
-      <h1 className="text-2xl font-bold mb-4">Saldo Anda</h1>
-      <p className="text-4xl font-mono text-green-600 mb-6">
-        Rp {balance !== null ? balance.toLocaleString() : "Loading..."}
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Saldo Anda</h1>
+      <p className="text-xl font-medium text-green-600">
+        Rp {saldo !== null ? saldo.toLocaleString() : 'Loading...'}
       </p>
 
-      <div className="flex gap-4 justify-center mb-8">
-        <Link href="/topup" className="bg-blue-500 px-4 py-2 rounded text-white">Top Up</Link>
-        <Link href="/withdraw" className="bg-red-500 px-4 py-2 rounded text-white">Tarik</Link>
+      <div>
+        <h2 className="text-lg font-semibold mb-2">Top Up / Tarik</h2>
+        <div className="flex space-x-4">
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Kirim Uang
+          </button>
+          <button className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">
+            Riwayat
+          </button>
+        </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Link href="/transfer" className="bg-yellow-400 p-4 rounded">📤 Kirim Uang</Link>
-        <Link href="/history" className="bg-gray-300 p-4 rounded">🧾 Riwayat</Link>
-      </div>
-    </main>
-  );
+    </div>
+  )
 }
