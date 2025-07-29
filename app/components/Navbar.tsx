@@ -1,112 +1,95 @@
-// app/components/Navbar.tsx
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/supabase/client";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
-const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/redeem", label: "Redeem" },
-  { href: "/transfer", label: "Transfer" },
-  { href: "/history", label: "Riwayat" },
-];
+interface Profile {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+}
 
 export default function Navbar() {
-  const pathname = usePathname();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const router = useRouter();
-  const [profile, setProfile] = useState<{ username: string; avatar_url: string | null } | null>(null);
-  const [openDropdown, setOpenDropdown] = useState(false);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const getProfile = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+
+      if (!user) {
+        setProfile(null);
+        return;
+      }
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("username, avatar_url")
+        .select("id, username, avatar_url")
         .eq("id", user.id)
         .single();
 
-      if (!error && data) setProfile(data);
+      if (!error && data) {
+        setProfile(data);
+      }
     };
-    fetchProfile();
+
+    getProfile();
   }, []);
 
-  const avatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.username ?? "U"}`;
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  const toggleDropdown = () => {
+    setDropdownOpen(!dropdownOpen);
+  };
+
+  const avatarSrc = profile?.avatar_url
+    ? profile.avatar_url
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        profile?.username ?? "U"
+      )}&background=0D8ABC&color=fff&size=128`;
 
   return (
-    <nav className="w-full bg-white shadow px-8 py-3 flex justify-between items-center">
-      <Link href="/">
-        <h1 className="font-bold text-xl text-blue-600">E-Wallet Simulator</h1>
+    <nav className="bg-white shadow px-4 py-3 flex justify-between items-center">
+      <Link href="/" className="text-xl font-bold text-blue-600">
+        E-Wallet Sim
       </Link>
-      <div className="flex space-x-6 items-center">
-        <div className="flex space-x-4">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`text-sm font-medium transition ${
-                pathname === item.href ? "text-blue-600 underline" : "text-gray-700 hover:text-blue-600"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
+
+      <div className="relative">
         {profile && (
-          <div className="relative">
-            <button onClick={() => setOpenDropdown(!openDropdown)}>
-              <Image
-                src={avatar}
-                alt="Avatar"
-                width={32}
-                height={32}
-                className="rounded-full border"
-              />
+          <button onClick={toggleDropdown} className="focus:outline-none">
+            <Image
+              src={avatarSrc}
+              alt="Avatar"
+              width={40}
+              height={40}
+              className="rounded-full border-2 border-blue-500"
+            />
+          </button>
+        )}
+
+        {dropdownOpen && (
+          <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
+            <Link
+              href={`/profile/${profile?.id}`}
+              className="block px-4 py-2 hover:bg-gray-100"
+            >
+              Profil
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100"
+            >
+              Logout
             </button>
-            {openDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-md z-50">
-                <Link
-                  href="/profile"
-                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
-                >
-                  Profil Saya
-                </Link>
-                <Link
-                  href="/redeem"
-                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
-                >
-                  Redeem Kode
-                </Link>
-                <Link
-                  href="/transfer"
-                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
-                >
-                  Transfer Saldo
-                </Link>
-                <Link
-                  href="/history"
-                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
-                >
-                  Riwayat
-                </Link>
-                <button
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    router.refresh();
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
