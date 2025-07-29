@@ -14,20 +14,24 @@ export default function RedeemPage() {
     setLoading(true);
     setMessage("");
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       setMessage("Kamu belum login.");
       setLoading(false);
       return;
     }
 
-    const { data: gift, error } = await supabase
+    // Cari kode gift
+    const { data: gift, error: giftError } = await supabase
       .from("gift_codes")
       .select("*")
       .eq("code", code)
       .single();
 
-    if (error || !gift) {
+    if (giftError || !gift) {
       setMessage("Kode tidak ditemukan.");
       setLoading(false);
       return;
@@ -39,38 +43,52 @@ export default function RedeemPage() {
       return;
     }
 
-    // Update gift code as redeemed
-    const { error: updateError } = await supabase
+    // Tandai gift code sebagai digunakan
+    const { error: updateGiftError } = await supabase
       .from("gift_codes")
       .update({
         is_redeemed: true,
         redeemed_by: user.id,
-        redeemed_at: new Date(),
+        redeemed_at: new Date().toISOString(),
       })
       .eq("id", gift.id);
 
-    if (updateError) {
+    if (updateGiftError) {
       setMessage("Gagal menukarkan kode.");
       setLoading(false);
       return;
     }
 
-    // Tambahkan saldo user
-    const { error: updateProfileError } = await supabase
+    // Ambil balance user dulu
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .update({
-        balance: supabase.rpc('add_balance', { uid: user.id, amount: gift.amount }) // opsional: pakai function
-      })
+      .select("balance")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      setMessage("Gagal mengambil profil.");
+      setLoading(false);
+      return;
+    }
+
+    const newBalance = profile.balance + gift.amount;
+
+    // Update balance
+    const { error: updateBalanceError } = await supabase
+      .from("profiles")
+      .update({ balance: newBalance })
       .eq("id", user.id);
 
-    if (updateProfileError) {
+    if (updateBalanceError) {
       setMessage("Gagal menambahkan saldo.");
       setLoading(false);
       return;
     }
 
-    setMessage(`Berhasil menukarkan kode. Saldo kamu bertambah Rp${gift.amount.toLocaleString()}`);
+    setMessage(`Berhasil! Saldo kamu bertambah Rp${gift.amount.toLocaleString()}`);
     setLoading(false);
+    setCode("");
   };
 
   return (
