@@ -1,33 +1,30 @@
 "use client";
 
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import Image from "next/image";
 
+interface Profile {
+  id: string;
+  username: string;
+  email: string;
+  avatar_url: string | null;
+  balance: number;
+}
+
 export default function ProfilePage() {
   const { id } = useParams();
-  const router = useRouter();
-  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [balance, setBalance] = useState(0);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   useEffect(() => {
-    const getProfile = async () => {
+    const fetchProfile = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      setSessionUserId(user.id);
 
       const { data, error } = await supabase
         .from("profiles")
@@ -35,133 +32,117 @@ export default function ProfilePage() {
         .eq("id", id)
         .single();
 
-      if (error) {
-        console.error(error);
-        return;
-      }
-
-      setUsername(data.username || "");
-      setEmail(data.email);
-      setBalance(data.balance);
-      setAvatarUrl(data.avatar_url);
-      setIsOwner(user.id === data.id);
-
-      // Redirect ke halaman profile kalau user belum lengkapi profil
-      if ((data.id === user.id) && (!data.username || !data.avatar_url)) {
-        router.push(`/profile/${data.id}`);
+      if (data) {
+        setProfile(data);
+        setNewUsername(data.username);
+        setIsOwner(user?.id === data.id);
       }
     };
 
-    getProfile();
-  }, [id, router]);
+    fetchProfile();
+  }, [id]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-    }
-  };
+  const handleUpdate = async () => {
+    if (!profile) return;
 
-  const uploadAvatar = async () => {
-    if (!file || !sessionUserId) return null;
+    let avatar_url = profile.avatar_url;
 
-    const fileExt = file.name.split(".").pop();
-    const filePath = `${sessionUserId}.${fileExt}`;
+    if (avatarFile) {
+      const fileExt = avatarFile.name.split(".").pop();
+      const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(filePath, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, avatarFile, {
+          upsert: true,
+        });
 
-    if (uploadError) {
-      console.error(uploadError);
-      return null;
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("avatars").getPublicUrl(filePath);
-
-    return publicUrl;
-  };
-
-  const handleSave = async () => {
-    let avatar = avatarUrl;
-    if (file) {
-      const uploadedUrl = await uploadAvatar();
-      if (uploadedUrl) avatar = uploadedUrl;
+      if (!uploadError) {
+        const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
+        avatar_url = data.publicUrl;
+      } else {
+        console.error("Upload error:", uploadError);
+        alert("Gagal upload avatar.");
+        return;
+      }
     }
 
     const { error } = await supabase
       .from("profiles")
-      .update({ username, avatar_url: avatar })
-      .eq("id", sessionUserId);
+      .update({ username: newUsername, avatar_url })
+      .eq("id", profile.id);
 
-    if (error) {
-      alert("Gagal menyimpan perubahan");
-      console.error(error);
+    if (!error) {
+      setProfile((prev) =>
+        prev ? { ...prev, username: newUsername, avatar_url } : prev
+      );
+      alert("Profil berhasil diperbarui!");
     } else {
-      alert("Perubahan berhasil disimpan");
-      setAvatarUrl(avatar);
+      alert("Gagal memperbarui profil.");
     }
   };
 
+  if (!profile) return <p className="text-center mt-8">Memuat profil...</p>;
+
+  const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    profile.username
+  )}&background=random`;
+
   return (
-    <div className="max-w-xl mx-auto p-6">
-      <div className="text-center mb-6">
-        {avatarUrl ? (
-          <Image
-            src={avatarUrl}
-            alt="Avatar"
-            width={100}
-            height={100}
-            className="rounded-full mx-auto"
-          />
-        ) : (
-          <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto" />
-        )}
+    <div className="max-w-xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
+      <div className="flex flex-col items-center mb-6">
+        <Image
+          src={profile.avatar_url || avatarFallback}
+          alt="Avatar"
+          width={100}
+          height={100}
+          className="rounded-full object-cover"
+        />
         {isOwner && (
           <input
             type="file"
             accept="image/*"
-            onChange={handleFileChange}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) setAvatarFile(file);
+            }}
             className="mt-2"
           />
         )}
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <label className="block font-medium">Username</label>
-          {isOwner ? (
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="border p-2 rounded w-full"
-            />
-          ) : (
-            <p>{username}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block font-medium">Email</label>
-          <p>{email}</p>
-        </div>
-
-        <div>
-          <label className="block font-medium">Saldo</label>
-          <p>{balance.toLocaleString()} coins</p>
-        </div>
-
-        {isOwner && (
-          <button
-            onClick={handleSave}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            Simpan Perubahan
-          </button>
+      <div className="mb-4">
+        <label className="block font-semibold">Username</label>
+        {isOwner ? (
+          <input
+            type="text"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            className="w-full border px-3 py-2 rounded-md"
+          />
+        ) : (
+          <p>{profile.username}</p>
         )}
       </div>
+
+      <div className="mb-4">
+        <label className="block font-semibold">Email</label>
+        <p>{profile.email}</p>
+      </div>
+
+      <div className="mb-4">
+        <label className="block font-semibold">Saldo</label>
+        <p>{profile.balance.toLocaleString()} coins</p>
+      </div>
+
+      {isOwner && (
+        <button
+          onClick={handleUpdate}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+        >
+          Simpan Perubahan
+        </button>
+      )}
     </div>
   );
 }
