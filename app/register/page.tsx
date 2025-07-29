@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,27 +18,12 @@ export default function RegisterPage() {
     });
 
     if (error) {
-      alert("Auth error: " + error.message);
+      alert("Gagal register: " + error.message);
       return;
     }
 
-    const user = data?.user;
-    if (!user) {
-      alert("Gagal mendapatkan user dari Supabase");
-      return;
-    }
-
-    // Insert ke tabel profiles
-    const { error: dbError } = await supabase.from("profiles").insert({
-      id: user.id,
-      email: email,
-    });
-
-    if (dbError) {
-      alert("Database error saving new user: " + dbError.message);
-      return;
-    }
-
+    // ✅ Supabase akan otomatis insert ke tabel profiles via trigger
+    alert("Registrasi berhasil! Silakan login.");
     router.push("/login");
   }
 
@@ -65,12 +50,15 @@ export default function RegisterPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded">
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+        >
           Register
         </button>
         <p className="text-sm text-center">
           Sudah punya akun?{" "}
-          <a href="/login" className="text-blue-600">
+          <a href="/login" className="text-blue-600 hover:underline">
             Login
           </a>
         </p>
