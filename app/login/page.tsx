@@ -1,46 +1,41 @@
 "use client";
 
-import { supabase } from "@/lib/supabase/client";
 import { useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Cek apakah user sudah login
     const checkSession = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
       if (session) {
-        router.push("/"); // atau halaman utama setelah login
+        router.push("/"); // redirect kalau sudah login
       }
     };
-
     checkSession();
   }, [router]);
 
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+  const handleLoginWithGoogle = async () => {
+    await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${location.origin}/auth/callback`, // atau ke dashboard langsung
+        redirectTo: "https://ewallet.ramdan.fun/auth/callback", // ini HARUS sama dengan yang didaftarkan di Google Console
       },
     });
-
-    if (error) {
-      alert("Gagal login dengan Google: " + error.message);
-    }
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm text-center">
-        <h1 className="text-2xl font-semibold mb-4">Login</h1>
+    <main className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm text-center space-y-4">
+        <h1 className="text-xl font-semibold">Login ke eWallet</h1>
         <button
-          onClick={handleGoogleLogin}
-          className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600"
+          onClick={handleLoginWithGoogle}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
         >
           Login dengan Google
         </button>
