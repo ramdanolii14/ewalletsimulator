@@ -1,25 +1,40 @@
-// app/profile/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
 export default function ProfileRedirectPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const redirectToUserProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        router.replace(`/profile/${user.id}`);
-      } else {
-        router.replace("/"); // atau arahkan ke halaman login jika belum login
+    const redirect = async () => {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (error || !user) {
+          router.replace("/"); // atau arahkan ke halaman login
+        } else {
+          router.replace(`/profile/${user.id}`);
+        }
+      } catch (err) {
+        console.error("Redirect error:", err);
+        router.replace("/");
+      } finally {
+        setLoading(false);
       }
     };
 
-    redirectToUserProfile();
+    redirect();
   }, [router]);
 
-  return <p className="text-center mt-10">Mengalihkan ke halaman profil...</p>;
+  return (
+    <div className="flex justify-center items-center h-screen">
+      <p className="text-gray-600">Mengarahkan ke halaman profil...</p>
+    </div>
+  );
 }
