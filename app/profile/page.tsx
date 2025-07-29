@@ -1,141 +1,115 @@
-// app/app/profile/page.tsx
+// app/components/Navbar.tsx
 "use client";
 
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import Dropzone from "react-dropzone";
-import imageCompression from "browser-image-compression";
 
-export default function ProfilePage() {
-  const [profile, setProfile] = useState<any>(null);
-  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [newUsername, setNewUsername] = useState("");
-  const [uploading, setUploading] = useState(false);
+const navItems = [
+  { href: "/", label: "Dashboard" },
+  { href: "/redeem", label: "Redeem" },
+  { href: "/transfer", label: "Transfer" },
+  { href: "/history", label: "Riwayat" },
+];
+
+export default function Navbar() {
+  const pathname = usePathname();
   const router = useRouter();
+  const [profile, setProfile] = useState<{ username: string; avatar_url: string | null } | null>(null);
+  const [openDropdown, setOpenDropdown] = useState(false);
 
   useEffect(() => {
-    const getProfile = async () => {
+    const fetchProfile = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return router.push("/");
-      setSessionUserId(user.id);
+      if (!user) return;
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, email, avatar_url, balance")
+        .select("username, avatar_url")
         .eq("id", user.id)
         .single();
 
-      if (error) console.error(error);
-      else {
-        setProfile(data);
-        setNewUsername(data.username);
-      }
-      setLoading(false);
+      if (!error && data) setProfile(data);
     };
-    getProfile();
+    fetchProfile();
   }, []);
 
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    const compressed = await imageCompression(file, { maxSizeMB: 0.5 });
-    const ext = file.name.split(".").pop();
-    const filename = `${Date.now()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(filename, compressed, { upsert: true });
-
-    if (uploadError) {
-      alert("Upload gagal");
-      return;
-    }
-
-    const { data } = supabase.storage.from("avatars").getPublicUrl(filename);
-    const publicUrl = data.publicUrl;
-
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ avatar_url: publicUrl })
-      .eq("id", sessionUserId);
-
-    if (!updateError) setProfile({ ...profile, avatar_url: publicUrl });
-    setUploading(false);
-  };
-
-  const handleSave = async () => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ username: newUsername })
-      .eq("id", sessionUserId);
-
-    if (!error) {
-      setProfile({ ...profile, username: newUsername });
-      alert("Profil berhasil diperbarui");
-    }
-  };
-
-  if (loading) return <p className="p-4">Loading...</p>;
-
-  const isOwner = profile?.id === sessionUserId;
+  const avatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.username ?? "U"}`;
 
   return (
-    <div className="max-w-xl mx-auto p-6">
-      <div className="flex flex-col items-center mb-6">
-        <Image
-          src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.username}`}
-          alt="Avatar"
-          width={96}
-          height={96}
-          className="rounded-full mb-4"
-        />
-        {isOwner && (
-          <Dropzone onDrop={(acceptedFiles) => handleUpload(acceptedFiles[0])}>
-            {({ getRootProps, getInputProps }) => (
-              <div
-                {...getRootProps()}
-                className="cursor-pointer px-4 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
-              >
-                <input {...getInputProps()} />
-                {uploading ? "Mengupload..." : "Ganti Avatar"}
+    <nav className="w-full bg-white shadow px-8 py-3 flex justify-between items-center">
+      <Link href="/">
+        <h1 className="font-bold text-xl text-blue-600">E-Wallet Simulator</h1>
+      </Link>
+      <div className="flex space-x-6 items-center">
+        <div className="flex space-x-4">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`text-sm font-medium transition ${
+                pathname === item.href ? "text-blue-600 underline" : "text-gray-700 hover:text-blue-600"
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+        {profile && (
+          <div className="relative">
+            <button onClick={() => setOpenDropdown(!openDropdown)}>
+              <Image
+                src={avatar}
+                alt="Avatar"
+                width={32}
+                height={32}
+                className="rounded-full border"
+              />
+            </button>
+            {openDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-md z-50">
+                <Link
+                  href="/profile"
+                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
+                >
+                  Profil Saya
+                </Link>
+                <Link
+                  href="/redeem"
+                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
+                >
+                  Redeem Kode
+                </Link>
+                <Link
+                  href="/transfer"
+                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
+                >
+                  Transfer Saldo
+                </Link>
+                <Link
+                  href="/history"
+                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
+                >
+                  Riwayat
+                </Link>
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    router.refresh();
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600"
+                >
+                  Logout
+                </button>
               </div>
             )}
-          </Dropzone>
+          </div>
         )}
       </div>
-      <div className="mb-4">
-        <label className="block text-sm font-medium">Username</label>
-        {isOwner ? (
-          <input
-            type="text"
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-        ) : (
-          <p>{profile.username}</p>
-        )}
-      </div>
-      <div className="mb-4">
-        <label className="block text-sm font-medium">Email</label>
-        <p>{profile.email}</p>
-      </div>
-      <div className="mb-4">
-        <label className="block text-sm font-medium">Balance</label>
-        <p>Rp {profile.balance.toLocaleString()}</p>
-      </div>
-      {isOwner && (
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-        >
-          Simpan Perubahan
-        </button>
-      )}
-    </div>
+    </nav>
   );
 }
