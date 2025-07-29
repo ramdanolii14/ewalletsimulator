@@ -6,75 +6,91 @@ import { useRouter } from "next/navigation";
 
 export default function RedeemPage() {
   const [code, setCode] = useState("");
-  const [status, setStatus] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleRedeem = async () => {
-    setStatus("Mengecek...");
+    setLoading(true);
+    setMessage("");
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      setStatus("Kamu belum login.");
+      setMessage("Kamu belum login.");
+      setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
+    const { data: gift, error } = await supabase
       .from("gift_codes")
       .select("*")
       .eq("code", code)
       .single();
 
-    if (error || !data) {
-      setStatus("Kode tidak ditemukan.");
+    if (error || !gift) {
+      setMessage("Kode tidak ditemukan.");
+      setLoading(false);
       return;
     }
 
-    if (data.is_redeemed) {
-      setStatus("Kode sudah dipakai.");
+    if (gift.is_redeemed) {
+      setMessage("Kode ini sudah digunakan.");
+      setLoading(false);
       return;
     }
 
-    const { error: balanceError } = await supabase.rpc("increment_balance", {
-      user_id_input: user.id,
-      amount_input: data.amount
-    });
-
-    if (balanceError) {
-      setStatus("Gagal menambah saldo.");
-      return;
-    }
-
-    await supabase
+    // Update gift code as redeemed
+    const { error: updateError } = await supabase
       .from("gift_codes")
       .update({
         is_redeemed: true,
         redeemed_by: user.id,
-        redeemed_at: new Date().toISOString()
+        redeemed_at: new Date(),
       })
-      .eq("id", data.id);
+      .eq("id", gift.id);
 
-    setStatus(`Berhasil! Saldo bertambah Rp ${data.amount.toLocaleString()}`);
-    setCode("");
-    router.refresh();
+    if (updateError) {
+      setMessage("Gagal menukarkan kode.");
+      setLoading(false);
+      return;
+    }
+
+    // Tambahkan saldo user
+    const { error: updateProfileError } = await supabase
+      .from("profiles")
+      .update({
+        balance: supabase.rpc('add_balance', { uid: user.id, amount: gift.amount }) // opsional: pakai function
+      })
+      .eq("id", user.id);
+
+    if (updateProfileError) {
+      setMessage("Gagal menambahkan saldo.");
+      setLoading(false);
+      return;
+    }
+
+    setMessage(`Berhasil menukarkan kode. Saldo kamu bertambah Rp${gift.amount.toLocaleString()}`);
+    setLoading(false);
   };
 
   return (
-    <div className="max-w-md mx-auto mt-20 p-6 rounded-xl shadow-md bg-white">
-      <h1 className="text-2xl font-bold mb-4">Tukar Gift Code</h1>
+    <div className="max-w-md mx-auto mt-10 p-6 border rounded-xl shadow">
+      <h1 className="text-2xl font-bold mb-4">Tukarkan Gift Code</h1>
       <input
         type="text"
+        className="w-full border p-2 rounded mb-4"
+        placeholder="Masukkan kode..."
         value={code}
-        onChange={(e) => setCode(e.target.value.toUpperCase())}
-        placeholder="Masukkan kode"
-        className="w-full px-4 py-2 border rounded mb-4"
+        onChange={(e) => setCode(e.target.value)}
       />
       <button
+        className="bg-blue-600 text-white px-4 py-2 rounded w-full"
         onClick={handleRedeem}
-        className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        disabled={loading}
       >
-        Redeem
+        {loading ? "Menukarkan..." : "Tukarkan"}
       </button>
-      <p className="mt-4 text-center text-gray-700">{status}</p>
+      {message && <p className="mt-4 text-center">{message}</p>}
     </div>
   );
 }
