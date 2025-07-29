@@ -1,40 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+import { supabase } from "@/supabase/client";
 
 export default function ProfileRedirectPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const redirect = async () => {
-      try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
+    const checkProfile = async () => {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-        if (error || !user) {
-          router.replace("/"); // atau arahkan ke halaman login
-        } else {
-          router.replace(`/profile/${user.id}`);
-        }
-      } catch (err) {
-        console.error("Redirect error:", err);
-        router.replace("/");
-      } finally {
-        setLoading(false);
+      if (!user || userError) {
+        return router.replace("/");
       }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("username, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError || !profile) {
+        return router.replace("/profile/setup");
+      }
+
+      // Jika username kosong/null, arahkan ke halaman setup
+      if (!profile.username || profile.username.trim() === "") {
+        return router.replace("/profile/setup");
+      }
+
+      // Kalau semua aman, redirect ke halaman profile lengkap
+      router.replace(`/profile/${user.id}`);
     };
 
-    redirect();
+    checkProfile();
   }, [router]);
 
   return (
     <div className="flex justify-center items-center h-screen">
-      <p className="text-gray-600">Mengarahkan ke halaman profil...</p>
+      <p className="text-gray-600">Memuat data profil...</p>
     </div>
   );
 }
