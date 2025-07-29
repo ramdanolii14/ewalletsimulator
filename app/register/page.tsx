@@ -1,4 +1,3 @@
-// app/register/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -12,12 +11,35 @@ export default function RegisterPage() {
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (!error) {
-      router.push("/login");
-    } else {
-      alert(error.message);
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      alert("Auth error: " + error.message);
+      return;
     }
+
+    const user = data?.user;
+    if (!user) {
+      alert("Gagal mendapatkan user dari Supabase");
+      return;
+    }
+
+    // Insert ke tabel profiles
+    const { error: dbError } = await supabase.from("profiles").insert({
+      id: user.id,
+      email: email,
+    });
+
+    if (dbError) {
+      alert("Database error saving new user: " + dbError.message);
+      return;
+    }
+
+    router.push("/login");
   }
 
   return (
@@ -47,7 +69,10 @@ export default function RegisterPage() {
           Register
         </button>
         <p className="text-sm text-center">
-          Sudah punya akun? <a href="/login" className="text-blue-600">Login</a>
+          Sudah punya akun?{" "}
+          <a href="/login" className="text-blue-600">
+            Login
+          </a>
         </p>
       </form>
     </main>
