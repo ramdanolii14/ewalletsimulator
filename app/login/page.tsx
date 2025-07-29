@@ -1,9 +1,8 @@
-// app/login/page.tsx
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,16 +11,22 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) {
-      router.push("/");
-    } else {
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
       alert("Login gagal: " + error.message);
+      return;
     }
+
+    router.push("/");
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50">
+    <main className="min-h-screen flex items-center justify-center bg-gray-100">
       <form
         onSubmit={handleLogin}
         className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm space-y-4"
@@ -43,11 +48,17 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded">
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+        >
           Login
         </button>
         <p className="text-sm text-center">
-          Belum punya akun? <a href="/register" className="text-blue-600">Register</a>
+          Belum punya akun?{" "}
+          <a href="/register" className="text-blue-600 hover:underline">
+            Daftar
+          </a>
         </p>
       </form>
     </main>
