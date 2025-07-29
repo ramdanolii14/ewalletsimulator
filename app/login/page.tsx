@@ -1,43 +1,46 @@
 "use client";
 
 import { useEffect } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function LoginPage() {
   const router = useRouter();
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    // Cek apakah user sudah login
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        router.push("/"); // redirect kalau sudah login
+        // Jika sudah login, langsung ke halaman utama
+        router.push("/");
       }
-    };
-    checkSession();
-  }, [router]);
+    });
+  }, [supabase, router]);
 
-  const handleLoginWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
+  const handleGoogleLogin = async () => {
+    const origin = location.origin;
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "https://ewallet.ramdan.fun/auth/callback", // ini HARUS sama dengan yang didaftarkan di Google Console
+        redirectTo: `${origin}/auth/callback`, // pastikan ini diizinkan di Supabase
       },
     });
+
+    if (error) {
+      alert("Login error: " + error.message);
+    }
   };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm text-center space-y-4">
-        <h1 className="text-xl font-semibold">Login ke eWallet</h1>
+      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm space-y-4">
+        <h1 className="text-xl font-semibold text-center">Login</h1>
         <button
-          onClick={handleLoginWithGoogle}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
+          onClick={handleGoogleLogin}
+          className="w-full bg-red-500 text-white py-2 rounded"
         >
-          Login dengan Google
+          Login with Google
         </button>
       </div>
     </main>
