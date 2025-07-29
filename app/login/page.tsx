@@ -1,4 +1,3 @@
-// app/login/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -9,14 +8,21 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) {
-      router.push("/");
+    setErrorMsg("");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setErrorMsg(error.message);
     } else {
-      alert(error.message);
+      router.push("/");
     }
   }
 
@@ -27,6 +33,11 @@ export default function LoginPage() {
         className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm space-y-4"
       >
         <h1 className="text-xl font-semibold text-center">Login</h1>
+
+        {errorMsg && (
+          <div className="text-red-500 text-sm text-center">{errorMsg}</div>
+        )}
+
         <input
           type="email"
           placeholder="Email"
@@ -43,11 +54,17 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded">
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition"
+        >
           Login
         </button>
         <p className="text-sm text-center">
-          Belum punya akun? <a href="/register" className="text-blue-600">Register</a>
+          Belum punya akun?{" "}
+          <a href="/register" className="text-blue-600 hover:underline">
+            Daftar sekarang
+          </a>
         </p>
       </form>
     </main>
